@@ -22,5 +22,5 @@ int
 main(void)
 {
   memsizeTest();
-  exit(0);
+  exit(0, "");
 }
