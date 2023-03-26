@@ -15,8 +15,6 @@ mkfs
 kernel/kernel
 user/usys.S
 .gdbinit
-.devcointainer
-.vscode
-.devcointainer/**
-.vscode/**
+.devcontainer/
+.vscode/
 
