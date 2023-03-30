@@ -11,9 +11,12 @@ uint64
 sys_exit(void)
 {
   int n;
+  char *buf;
   if(argint(0, &n) < 0)
     return -1;
-  exit(n);
+  if(argstr(1, &buf, 32) < 0)
+    return -1;
+  exit(n, buf);
   return 0;  // not reached
 }
 
@@ -33,9 +36,12 @@ uint64
 sys_wait(void)
 {
   uint64 p;
+  uint64 addr;
   if(argaddr(0, &p) < 0)
     return -1;
-  return wait(p);
+  if(argaddr(1, &addr) < 0)
+    return -1;
+  return wait(p, addr);
 }
 
 uint64
@@ -94,4 +100,12 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+//get size of memory of process
+uint64
+sys_memsize(void)
+{
+	return myproc()->sz;
 }
