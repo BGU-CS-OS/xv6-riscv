@@ -13,5 +13,5 @@ int main()
     free(allocated);
     int finalSize = memsize();
     printf("Final size: %d\n", finalSize);
-    exit(0);
+    exit(0, "status 0\n");
 }

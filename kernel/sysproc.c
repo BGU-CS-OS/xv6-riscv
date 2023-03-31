@@ -11,9 +11,12 @@ uint64
 sys_exit(void)
 {
   int n;
+  char buf[32];
   if(argint(0, &n) < 0)
     return -1;
-  exit(n);
+  if(argstr(1, (char*)buf, 32) < 0)
+    return -1;
+  exit(n, (char*)buf);
   return 0;  // not reached
 }
 

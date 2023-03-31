@@ -337,10 +337,9 @@ reparent(struct proc *p)
 // An exited process remains in the zombie state
 // until its parent calls wait().
 void
-exit(int status)
+exit(int status, char* exit_msg)
 {
   struct proc *p = myproc();
-
   if(p == initproc)
     panic("init exiting");
 
@@ -370,7 +369,7 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
-
+  strncpy(p->exit_msg, exit_msg, 32);
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.
