@@ -19,6 +19,7 @@ main(int argc, char *argv[])
   int fd, i;
   char path[] = "stressfs0";
   char data[512];
+  char exit_msg_buf[32];
 
   printf("stressfs starting\n");
   memset(data, 'a', sizeof(data));
@@ -43,7 +44,7 @@ main(int argc, char *argv[])
     read(fd, data, sizeof(data));
   close(fd);
 
-  wait(0);
+  wait(0, (char*) exit_msg_buf);
 
   exit(0, "status 0\n");
 }

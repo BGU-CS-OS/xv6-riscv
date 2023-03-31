@@ -380,7 +380,7 @@ exit(int status, char* exit_msg)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(uint64 addr)
+wait(uint64 addr, uint64 msg_from_child_buf_ptr)
 {
   struct proc *np;
   int havekids, pid;
@@ -402,6 +402,12 @@ wait(uint64 addr)
           pid = np->pid;
           if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
                                   sizeof(np->xstate)) < 0) {
+            release(&np->lock);
+            release(&wait_lock);
+            return -1;
+          }
+          if(msg_from_child_buf_ptr != 0 && copyout(p->pagetable, msg_from_child_buf_ptr, (char *)&np->exit_msg,
+                                  sizeof(np->exit_msg)) < 0) {
             release(&np->lock);
             release(&wait_lock);
             return -1;

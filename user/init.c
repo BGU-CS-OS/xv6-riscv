@@ -15,7 +15,8 @@ int
 main(void)
 {
   int pid, wpid;
-
+  char exit_msg_buf[32];
+  
   if(open("console", O_RDWR) < 0){
     mknod("console", CONSOLE, 0);
     open("console", O_RDWR);
@@ -39,7 +40,7 @@ main(void)
     for(;;){
       // this call to wait() returns if the shell exits,
       // or if a parentless process exits.
-      wpid = wait((int *) 0);
+      wpid = wait((int *) 0, (char*) exit_msg_buf);
       if(wpid == pid){
         // the shell exited; restart it.
         break;

@@ -58,6 +58,7 @@ void
 runcmd(struct cmd *cmd)
 {
   int p[2];
+  char exit_msg_buf[32];
   struct backcmd *bcmd;
   struct execcmd *ecmd;
   struct listcmd *lcmd;
@@ -93,7 +94,7 @@ runcmd(struct cmd *cmd)
     lcmd = (struct listcmd*)cmd;
     if(fork1() == 0)
       runcmd(lcmd->left);
-    wait(0);
+    wait(0, (char*) exit_msg_buf);
     runcmd(lcmd->right);
     break;
 
@@ -117,8 +118,8 @@ runcmd(struct cmd *cmd)
     }
     close(p[0]);
     close(p[1]);
-    wait(0);
-    wait(0);
+    wait(0, (char*) exit_msg_buf);
+    wait(0, (char*) exit_msg_buf);
     break;
 
   case BACK:
@@ -166,7 +167,9 @@ main(void)
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
-    wait(0);
+    char exit_msg_buf[32];
+    wait(0, (char*) exit_msg_buf);
+    printf("\nchild process exit message: %s\n", exit_msg_buf);
   }
   exit(0, "status 0\n");
 }

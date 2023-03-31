@@ -17,7 +17,7 @@ void
 forktest(void)
 {
   int n, pid;
-
+  char exit_msg_buf[32];
   print("fork test\n");
 
   for(n=0; n<N; n++){
@@ -34,13 +34,13 @@ forktest(void)
   }
 
   for(; n > 0; n--){
-    if(wait(0) < 0){
+    if(wait(0, (char*) exit_msg_buf) < 0){
       print("wait stopped early\n");
       exit(1, "status 1\n");
     }
   }
 
-  if(wait(0) != -1){
+  if(wait(0, (char*) exit_msg_buf) != -1){
     print("wait got too many\n");
     exit(1, "status 1\n");
   }

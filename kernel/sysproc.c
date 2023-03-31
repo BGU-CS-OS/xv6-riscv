@@ -36,9 +36,12 @@ uint64
 sys_wait(void)
 {
   uint64 p;
-  if(argaddr(0, &p) < 0)
+  uint64 exit_msg_ptr;
+   if(argaddr(0, &p) < 0)
     return -1;
-  return wait(p);
+  if(argaddr(1, &exit_msg_ptr) < 0)
+    return -1;
+  return wait(p, exit_msg_ptr);
 }
 
 uint64
