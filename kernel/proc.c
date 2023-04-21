@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "kthread.h"
 
 struct cpu cpus[NCPU];
 
@@ -35,11 +36,13 @@ proc_mapstacks(pagetable_t kpgtbl)
   struct proc *p;
   
   for(p = proc; p < &proc[NPROC]; p++) {
-    char *pa = kalloc();
-    if(pa == 0)
-      panic("kalloc");
-    uint64 va = KSTACK((int) (p - proc));
-    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++) {
+      char *pa = kalloc();
+      if(pa == 0)
+        panic("kalloc");
+      uint64 va = KSTACK((int) ((p - proc) * NKT + (kt - p->kthread)));
+      kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    }
   }
 }
 
@@ -51,10 +54,11 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+  
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
-      p->kstack = KSTACK((int) (p - proc));
+      kthreadinit(p);
   }
 }
 
@@ -122,11 +126,14 @@ allocproc(void)
   return 0;
 
 found:
+  p->tid_counter = 1;
+  allockthread(p);
+  // Reminder: proc lock and kthread still acquired!
   p->pid = allocpid();
   p->state = USED;
 
   // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+  if((p->base_trapframes = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
     release(&p->lock);
     return 0;
@@ -140,12 +147,6 @@ found:
     return 0;
   }
 
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
-  memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;
-
   return p;
 }
 
@@ -155,9 +156,9 @@ found:
 static void
 freeproc(struct proc *p)
 {
-  if(p->trapframe)
-    kfree((void*)p->trapframe);
-  p->trapframe = 0;
+  if(p->base_trapframes)
+    kfree((void*)p->base_trapframes);
+  p->base_trapframes = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -165,10 +166,14 @@ freeproc(struct proc *p)
   p->pid = 0;
   p->parent = 0;
   p->name[0] = 0;
-  p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->tid_counter = 0;
+
+  for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++){
+    freekthread(kt);
+  }
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -195,8 +200,8 @@ proc_pagetable(struct proc *p)
 
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
-  if(mappages(pagetable, TRAPFRAME, PGSIZE,
-              (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
+  if(mappages(pagetable, TRAPFRAME(0), PGSIZE,
+              (uint64)(p->base_trapframes), PTE_R | PTE_W) < 0){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmfree(pagetable, 0);
     return 0;
@@ -211,7 +216,7 @@ void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmunmap(pagetable, TRAPFRAME(0), 1, 0);
   uvmfree(pagetable, sz);
 }
 
@@ -243,15 +248,17 @@ userinit(void)
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
-  p->trapframe->epc = 0;      // user program counter
-  p->trapframe->sp = PGSIZE;  // user stack pointer
+  p->kthread[0].t_trapframe->epc = 0;      // user program counter
+  p->kthread[0].t_trapframe->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->kthread->t_state = RUNNABLE;
 
   release(&p->lock);
+  release(&p->kthread->t_lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -282,6 +289,7 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+  struct kthread *kt = mykthread();
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -297,10 +305,10 @@ fork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
+  *(np->kthread[0].t_trapframe) = *(kt->t_trapframe);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+  np->kthread[0].t_trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)

@@ -1,7 +1,9 @@
 {
     "files.associations": {
+        "hw1": "code-text-binary",
         "types.h": "c",
         "riscv.h": "c",
         "defs.h": "c",
+        "cstdlib": "c"
     },
 }
