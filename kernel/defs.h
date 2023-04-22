@@ -108,8 +108,12 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
 // kthread.c
-void                kthreadinit(struct proc *);
-struct kthread*     mykthread();
+void            kthreadinit(struct proc*);
+struct kthread* mykthread();
+int             alloc_tid(struct proc*);
+//static struct kthread* allockthread(struct proc*);
+//static void     freekthread(struct kthread);
+struct trapframe* get_kthread_trapframe(struct proc*, struct kthread*);
 
 
 // swtch.S

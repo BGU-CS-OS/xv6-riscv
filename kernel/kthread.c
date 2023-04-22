@@ -11,13 +11,14 @@ extern struct proc proc[NPROC];
 extern void forkret(void);
 
 
-void kthreadinit(struct proc *p)
+void
+kthreadinit(struct proc *p)
 {
   initlock(&p->counter_lock, "tid_counter");
   for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
     initlock(&kt->t_lock, "thread");
-      kt->t_state = UNUSED;
+      kt->t_state = T_UNUSED;
     // WARNING: Don't change this line!
     // get the pointer to the kernel stack of the kthread
     kt->t_kstack = KSTACK((int)((p - proc) * NKT + (kt - p->kthread)));
@@ -26,7 +27,8 @@ void kthreadinit(struct proc *p)
 
 
 
-struct kthread *mykthread()
+struct kthread*
+mykthread(void)
 {
   push_off();
   struct cpu *c = mycpu();
@@ -56,7 +58,7 @@ allockthread(struct proc* p)
   for (kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
     acquire(&kt->t_lock);
-    if(kt->t_state==UNUSED)  {
+    if(kt->t_state==T_UNUSED)  {
       goto found;
     } 
     else {
@@ -67,7 +69,7 @@ allockthread(struct proc* p)
 
   found:
   kt->tid = alloc_tid();
-  kt->t_state = USED;
+  kt->t_state = T_USED;
 
   // Allocate a trapframe page.
   if (!(kt->t_trapframe = get_kthread_trapframe(p, kt))){
@@ -98,7 +100,7 @@ freekthread(struct kthread *kt)
   kt->t_chan = 0;
   kt->t_killed = 0;
   kt->t_xstate = 0;
-  kt->t_state = UNUSED;
+  kt->t_state = T_UNUSED;
   kt->pcb = 0;
 }
 

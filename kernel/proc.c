@@ -5,7 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-#include "kthread.h"
+//#include "kthread.h"
 
 struct cpu cpus[NCPU];
 

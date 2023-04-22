@@ -5,6 +5,7 @@
 
 struct uthread uthreads[MAX_UTHREADS]={0};
 struct uthread* current;
+int first = 0;
 
 
 int 
@@ -55,7 +56,7 @@ pick_thread_to_run(struct uthread* thread_to_run)
 {
     struct uthread* t=0;
     int max_priority = 0;
-    // enum sched_priority { LOW, MEDIUM, HIGH };
+    
     for(t = uthreads; t < &uthreads[MAX_UTHREADS]; t++) {
         int pr = sched_priority_num(t->priority);
         if(pr>max_priority){
@@ -91,7 +92,8 @@ uthread_yield()
 }
 
 
-int is_all_threads_free(void)
+int 
+is_all_threads_free(void)
 {
 struct uthread* t;
 for(t = uthreads; t < &uthreads[MAX_UTHREADS]; t++) {
@@ -135,40 +137,22 @@ uthread_get_priority()
 int 
 uthread_start_all()
 {
-    if (uthread_start_flag) {
-        return -1; // already started
+    if (first) {
+        return -1; 
     }
-    uthread_start_flag = 1; // mark as started
+    first = 1; 
+    struct uthread* t;
+    pick_thread_to_run(t);
 
-    // Find the highest priority thread to run
-    int max_priority = -1;
-    struct uthread *next_thread = 0;
-    for (int i = 0; i < NTHREAD; i++) {
-        if (thread_table[i].state == T_RUNNABLE && thread_table[i].priority > max_priority) {
-            max_priority = thread_table[i].priority;
-            next_thread = &thread_table[i];
-        }
+    if (t) {  
+      uthread_switch(&main_thread, next_thread);
+    } 
+    else{
+        return -1;
     }
-
-    if (next_thread) {
-        // Switch to the selected thread
-        uthread_switch(&main_thread, next_thread);
-    }
-
-    // We should never get here
-    panic("uthread_start_all returned");
-
-
-
-
-
-
-    /*current->state = RUNNABLE;
-    struct uthread* thread_to_run;
-    pick_thread_to_run(thread_to_run);
-    uswtch(&current->context, &thread_to_run->context);
-    */
 }
+
+
 struct uthread* 
 uthread_self(){ 
     return current;
