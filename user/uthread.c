@@ -1,11 +1,40 @@
 #include "uthread.h"
 #include "user.h"
 
-#define MAX_UTHREADS 100
+
 static struct uthread uthreads[MAX_UTHREADS];
 struct uthread  *running_thread = NULL;
 static int num_thread=0;//tracking the number of threads
 static bool isInit = false;
+struct uthread*
+get_next_thread()
+{
+    struct uthread* t = 0;
+    int max_priority = LOW;
+    
+    for(t = uthreads; t < &uthreads[MAX_UTHREADS]; t++) {
+        if(t->priority > max_priority){
+            max_priority = t->priority;
+        }
+    }
+
+
+    t = running_thread;
+    if ((t == 0) || (++t >= &uthreads[MAX_UTHREADS])) {
+        t = uthreads;
+    }
+    for (int i = 0; i < MAX_UTHREADS; i++){
+        if (t >= &uthreads[MAX_UTHREADS]) {
+            t = uthreads;
+        } 
+        
+        if(t->priority == max_priority && (t->state == RUNNABLE || t->state == RUNNING)){
+            return t;
+        } 
+        t++;   
+    }
+    return 0; 
+}
 
 int uthread_create(void (*start_func)(), enum sched_priority priority) {
     int i;
