@@ -72,7 +72,7 @@ struct context {
 
 // Per-CPU state.
 struct cpu {
-  struct kthread *kthread;          // The process running on this cpu, or null.
+  struct kthread *kt;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
@@ -80,28 +80,20 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 
-enum Kstate {K_UNUSED, K_USED, K_SLEEPING, K_RUNNABLE, K_RUNNING, K_ZOMBIE};
+enum KTstate {KT_UNUSED, KT_USED, KT_SLEEPING, KT_RUNNABLE, KT_RUNNING, KT_ZOMBIE};
 
 struct kthread
 {
-  struct trapframe *trapframe;  // data page for trampoline.S
-
   struct spinlock lock;
 
-  // p->lock must be held when using these:
-  enum Kstate state;        // Process state
+  enum KTstate state;      // Process state
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
-  int Kpid;                     // Process ID
-
-  // wait_lock must be held when using this:
-  struct proc *parent;         // Parent process
-
-  // these are private to the process, so p->lock need not be held.
+  int ktid;                    // Kernel Thread ID
+  struct proc* proc;           // thread parent proc
   uint64 kstack;               // Virtual address of kernel stack
+  struct trapframe *trapframe; // data page for trampoline.S
   struct context context;      // swtch() here to run process
 
 };
-
-struct kthread* alloc_kthread(struct proc* p);

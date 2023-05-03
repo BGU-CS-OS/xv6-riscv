@@ -109,15 +109,12 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
 // kthread.c
-void                kthreadinit(struct proc *);
+void                kthread_init(struct proc*);
 struct kthread*     mykthread();
-struct trapframe*   get_kthread_trapframe(struct proc *p, struct kthread *kt);
-int                 alloc_kpid(struct proc *p);
-struct kthread*     alloc_kthread(struct proc* p);
-void                free_kthread(struct kthread* k);
-
-// TODO: delte this after you are done with task 2.2
-void allocproc_help_function(struct proc *p);
+struct trapframe*   get_kthread_trapframe(struct proc*, struct kthread*);
+int                 alloc_tid(struct proc*);
+struct kthread*     alloc_thread(struct proc*);
+void                free_thread(struct kthread*);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

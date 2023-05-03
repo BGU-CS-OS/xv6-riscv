@@ -10,83 +10,87 @@ extern struct proc proc[NPROC];
 
 extern void forkret(void);
 
-
-void kthreadinit(struct proc *p)
+void kthread_init(struct proc *p)
 {
-  initlock(&p->threadlock, "threadslock");
+
+  initlock(&p->threadslock, "threadslock");
+
   for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
-    initlock(&kt->lock, "kthread");
-    acquire(&kt->lock);
-    kt->state = K_UNUSED;
-    kt->parent = proc;
-    release(&kt->lock);
-
+    initlock(&kt->lock, "klock");
+    kt->state = KT_UNUSED;
+    kt->proc = p;
     // WARNING: Don't change this line!
     // get the pointer to the kernel stack of the kthread
     kt->kstack = KSTACK((int)((p - proc) * NKT + (kt - p->kthread)));
   }
 }
 
+
 struct kthread *mykthread()
 {
   push_off();
   struct cpu *c = mycpu();
-  struct kthread *k = c->kthread;
+  struct kthread *t = c->kt;
   pop_off();
-  return k;
+  return t;
 }
+
 
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
 {
   return p->base_trapframes + ((int)(kt - p->kthread));
 }
 
-// TODO: delte this after you are done with task 2.2
-// void allocproc_help_function(struct proc *p) {
-  // p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
 
-  // p->context.sp = p->kthread->kstack + PGSIZE;
-// }
-int alloc_kpid(struct proc *p){
+int alloc_tid(struct proc* p)
+{
+  acquire(&p->threadslock);
   int ktid;
-	acquire(&p->threadlock);
-	ktid = p->counter;
-  p->counter++;
-	release(&p->threadlock);
-	return ktid;
+  ktid = p->ktcounter;
+  p->ktcounter++;
+  release(&p->threadslock);
+  return ktid;
 }
 
-struct kthread* alloc_kthread(struct proc* p){
-
-  struct kthread *k;
-	for (k = p->kthread; k < &p->kthread[NKT]; k++){
-
-    acquire(&k->lock);
-    if(k->state == K_UNUSED) {
-      goto found;
-    } else {
-      release(&k->lock);
-    }
-  }
-  return 0;
-found:
-  k->Kpid = alloc_kpid(p);
-	k->state = K_USED;
-	k->trapframe = get_kthread_trapframe(p, k);
-	memset(&k->context, 0, sizeof(k->context));
-	k->context.ra = (uint64)forkret;
-	k->context.sp = k->kstack + PGSIZE;
-	return k;
-}
-//todo
-void free_kthread(struct kthread* k){
-  k->Kpid = 0;
-  k->chan = 0;
-  k->killed = 0;
-  k->xstate = 0;
-  k->trapframe = 0;
-  k->state = K_UNUSED;
+/**
+ * allocates a thread
+ * @post: returned thread's lock is acquired
+*/
+struct kthread* alloc_thread(struct proc* p)
+{
+	struct kthread *kt;
+	for (kt = p->kthread; kt < &p->kthread[NKT]; kt++)
+	{
+		acquire(&kt->lock);
+		if (kt->state != KT_UNUSED)
+			release(&kt->lock);
+		else
+		{
+			kt->ktid = alloc_tid(p);
+			kt->state = KT_USED;
+			kt->trapframe = get_kthread_trapframe(p, kt);
+			memset(&kt->context, 0, sizeof(kt->context));
+			kt->context.ra = (uint64)forkret;
+			kt->context.sp = kt->kstack + PGSIZE;
+			return kt;
+		}
+	}
+	return 0;
 }
 
-
+/**
+ * resets thread fields
+ * @pre: kt lock must be held
+ * @post: kt lock remains held
+*/
+void
+free_thread(struct kthread* kt)
+{
+  kt->ktid = 0;
+  kt->chan = 0;
+  kt->killed = 0;
+  kt->xstate = 0;
+  kt->trapframe = 0;
+  kt->state = KT_UNUSED;
+}
