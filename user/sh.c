@@ -152,7 +152,7 @@ int getcmd(char *buf, int nbuf)
 
 int main(void)
 {
-  static char buf[100];
+  static char buf[100], msg[32];
   int fd;
 
   // Ensure that three file descriptors are open.
@@ -178,7 +178,9 @@ int main(void)
     }
     if (fork1() == 0)
       runcmd(parsecmd(buf));
-    wait(0, "");
+    
+    wait(0, msg);
+    printf("%s", msg);
   }
   exit(0, "");
 }
